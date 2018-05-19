@@ -1,0 +1,144 @@
+//===== rAthena Script =======================================
+//= Party 3vs3
+//===== By: ==================================================
+//= Capuche
+//===== Current Version: =====================================
+//= 1.0
+//===== Compatible With: =====================================
+//= rAthena SVN
+//===== Description: =========================================
+//= Base on this request :
+//= http://rathena.org/board/topic/81997-my-ideal-pvp-mode/
+//----------------------------------------------------
+//= A game 3vs3. Players of a team must kill all players of
+//= other team. Killed player revive after some secondes
+//= defined by the setting.
+//= Reward at the end for all team member winner.
+//============================================================
+
+prontera,150,145,5	script	register	56,{
+function isreq;
+
+	callsub L_check;
+	if( select( "Register ?", "Informations" ) == 2 ) {
+		mes "info blablabla fill it as your content";
+		close;
+	}
+
+	if( !getcharid(1) ) {
+		mes "you're not in a party";
+		close;
+	}
+	else if( .party1 == getcharid(1) || .party2 == getcharid(1) ) {
+		mes "you're already on my list";
+		close;
+	}
+	getpartymember getcharid(1);
+	if( $@partymembercount != .count_req || !instance_check_party( getcharid(1),.count_req ) ) {
+		mes "you need "+ .count_req +" players online in your party";
+		close;
+	}
+	callsub L_check;
+	if( !.party2 )
+		.party2 = getcharid(1);
+	else
+		.party1 = getcharid(1);
+	dispbottom "your party is now on my list";
+	if( !.party1 || !.party2 ) end;
+
+	.start = 1;
+	warpparty .map_event$, 0,0, .party1;
+	warpparty .map_event$, 0,0, .party2;
+	initnpctimer;
+	end;
+
+OnPCKillEvent:
+	.@self = getcharid(3);
+	.@killed = killedrid;
+	.@is_reg = isreq();
+	attachrid( .@killed );
+	if( !isreq() ) end;
+	getpartymember getcharid(1),1;
+	getpartymember getcharid(1),2;
+	for( .@i = 0; .@i < $@partymembercount; .@i++ ) {
+		if( isloggedin( $@partymemberaid[.@i], $@partymembercid[.@i] ) ) {
+			attachrid( $@partymemberaid[.@i] );
+			sleep2 1;
+			if( strcharinfo(3) == .map_event$ ) {
+				.@is_online += 1;
+				if( Hp < 1 )
+					.@count += 1;
+			}
+		}
+	}
+	if( .@is_online != .@count ) {
+		attachrid( .@killed );
+		sleep2( .wait * 1000 );
+		atcommand "@alive";
+		end;
+	}
+	else if( !.@is_reg ) end;
+
+	attachrid( .@self );
+	sleep2 2;
+	announce "team "+ getpartyname( getcharid(1) ) +" win the event !", 0;
+	getpartymember getcharid(1);
+	getpartymember getcharid(1),1;
+	getpartymember getcharid(1),2;
+	for( .@i = 0; .@i < $@partymembercount; .@i++ )
+		if( isloggedin( $@partymemberaid[.@i], $@partymembercid[.@i] ) ) {
+			getmapxy .@map$, .@x, .@y, 0, $@partymembername$[.@i];
+			if( .@map$ == .map_event$ ) {
+				for( .@j = 0; .@j < .size_reward; .@j++ )
+					getitem .item_id[.@j], .item_count[.@j], $@partymemberaid[.@i];
+			}
+		}
+	stopnpctimer;
+	sleep 3000;
+
+OnTimer300000:	// 5 min then end of event
+	.start = .party1 = .party2 = 0;
+	mapwarp .map_event$,"prontera",0,0;
+	end;
+
+L_check:
+	if( .start ) end;
+	else if( getpartyname( .party1 ) == "null" )
+		.party1 = 0;
+	else if( getpartyname( .party2 ) == "null" )
+		.party2 = 0;
+	else if( getpartyname( .party1 ) != "null" ) {
+		getpartymember .party1;
+		if( $@partymembercount != .count_req || !instance_check_party( .party1,.count_req ) )
+			.party1 = 0;
+	}
+	else if( getpartyname( .party2 ) != "null" ) {
+		getpartymember .party2;
+		if( $@partymembercount != .count_req || !instance_check_party( .party2,.count_req ) )
+			.party2 = 0;
+	}
+	return;
+
+function isreq {
+	if( strcharinfo(3) == .map_event$ && .start && ( getcharid(1) == .party1 || getcharid(1) == .party2 ) ) return 1;
+	return 0;
+}
+OnInit:
+	.map_event$ = "geffen";	// your event map
+	.count_req = 1;	// count required in the party to start the event
+	.wait = 20;		// time in secs to be rezu
+	setarray .item_id, 501;		// item id array gained
+	setarray .item_count, 1;	// item count array gained - must be same size of .item_id array
+
+// Don't touch this part
+// ---------------------
+	.size_reward = getarraysize( .item_id );
+	setmapflag .map_event$,mf_noteleport;
+	setmapflag .map_event$,mf_nowarp;
+	setmapflag .map_event$,mf_nowarpto;
+	setmapflag .map_event$,mf_nomemo;
+	setmapflagnosave .map_event$,"prontera",0,0;
+	setmapflag .map_event$,mf_partylock;
+	setmapflag .map_event$,mf_pvp;
+	end;
+}

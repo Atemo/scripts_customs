@@ -1,0 +1,53 @@
+//===== rAthena Script =======================================
+//= Hourly Points
+//===== By: ==================================================
+//= Capuche
+//===== Current Version: =====================================
+//= 1.0
+//===== Compatible With: =====================================
+//= rAthena SVN
+//===== Description: =========================================
+//= Give a reward for staying IG 1 hour.
+//= It exists a lot a hourly points npc, it's just for fun.
+//= nb. : A while loop may not be the best way to prevent
+//= multi-loop..
+//============================================================
+
+-	script	hourlypoints	-1,{
+OnPCLoginEvent:
+	.@time_loop = @time_loop = gettimetick(2);
+	setd "."+ getcharid(0) +""+ .@time_loop, 1;
+	while(1) {
+		sleep2 30000;
+		if ( !getd( "."+ getcharid(0) +""+ .@time_loop ) ) end;
+		@loop__++;	// +1 loop every 30 secs
+		if( hourly_reward == gettime(8) ) {
+			@loop__ = 0;
+			if( .re_log ) end;
+		}
+		else if( checkvending() || checkchatting() ) {
+			dispbottom "The hourly points event stopped because you were vending / chatting. Please relog if you wish to start again.";
+			end;
+		}
+		else if( checkidle() > 300 ) {
+			if( @loop__ > 1 )
+				dispbottom "The hourly points event is re-initialized because you were idle more than 5 minutes.";
+			@loop__ = 0;
+			if( .re_log ) end;
+		}
+		else if( @loop__ == 60*2 ) {
+			hourly_reward = gettime(8);
+			getitem .reward_ID,1;
+			dispbottom "You received 1 "+ getitemname( .reward_ID ) +" by staying ingame for 1 hour.";
+			if( .re_log ) end;
+		}
+	}
+	end;
+OnPCLogoutEvent:
+	setd "."+ getcharid(0) +""+ @time_loop, 0;
+	end;
+OnInit:
+	.re_log = 0;		// player must relog to re-activate the hourly point ? (1: yes, 0: no)
+	.reward_ID = 7227;	// item ID reward when player not idle and online more than 1 hour
+	end;
+}

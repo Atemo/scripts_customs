@@ -1,0 +1,99 @@
+/*
+- For rAthena svn
+- By Capuche
+- Version 1.0
+---- Description ----
+	-> Sell a specific Item in my inventory vs some Items
+*/
+
+-	shop	costume_shop	-1,501:-1
+
+prontera,150,180,5	script	bghjkl	58,{
+
+	mes "Hi Good Day! Do you have spare costumes !";
+	mes "that you wanna get rid of?";
+	next;
+
+	set .@s, select( "No ! Goood bye.", "Trade", "More informations" );
+	if( .@s == 1 )
+		mes "Okay have a nice day.";
+	else if( .@s == 3 ) {
+		mes "blabla more informations.";
+	}
+
+	getinventorylist;
+	for( set .@i, 0; .@i < @inventorylist_count; set .@i, .@i + 1 )
+		if( !@inventorylist_expire[.@i] ) {
+			while( getd( ".costume_id"+ .@k +"[0]" ) ) {
+				while( .@j < getd( ".size_costume"+ .@k ) && @inventorylist_id[.@i] != getd( ".costume_id"+ .@k +"["+ .@j +"]" ) ) set .@j, .@j + 1;
+				if( .@j != getd( ".size_costume"+ .@k ) ) {
+					for( set .@h, 0; .@h < @inventorylist_amount[.@i]; set .@h, .@h + 1 ) {
+						set .@list_id[ .@size_shop ], @inventorylist_id[.@i];
+						set .@size_shop, .@size_shop + 1;
+					}
+					break;
+				}
+				set .@j, 0;
+				set .@k, .@k + 1;
+			}
+			set .@k, 0;
+			
+		}
+
+	if( !.@size_shop )
+		mes "Hmm I don't see any costumes on your inventory. Please check your inventory.";
+	else {
+		mes "Okay, here's a list of the costumes in your inventory.";
+		next;
+		npcshopitem "costume_shop",501,-1;
+		for( set .@i, 0; .@i < .@size_shop; set .@i, .@i + 1 )
+			npcshopadditem "costume_shop",.@list_id[.@i],0;
+		npcshopdelitem "costume_shop",501;
+		callshop "costume_shop", 1;
+		npcshopattach "costume_shop";
+	}
+	close;
+	
+OnBuyItem:
+	// if( !checkweight2( .item_exchangeID,.item_count ) ) {
+		// message strcharinfo(0),"You need additional weight capacity to complete this trade.";
+		// close;
+	// }
+	set .@count, getarraysize( @bought_nameid );
+	for( set .@i, 0; .@i < .size_count; set .@i, .@i + 1 ) {
+		set .@check, .item_count[.@i] * .@count;
+		if( .@check > 30000) {
+			message strcharinfo(0),"You can't purchase that many "+ getitemname( .item_exchangeID[.@i] ) +".";
+			end;
+		}
+		set .@gain$, .@gain$ + ( getstrlen( .@gain$ ) ? ", " : "" ) + .@check +" "+ getitemname( .item_exchangeID[.@i] );
+	}
+	mes "Sell the costume for "+ .@gain$ +"?";
+	next;
+	if( select( "Yes, I sell", "No" ) -1 ) close;
+	for( set .@i, 0; .@i < .@count; set .@i, .@i + 1 )
+		delitem @bought_nameid[.@i], @bought_quantity[.@i];
+	for( set .@i, 0; .@i < .size_count; set .@i, .@i + 1 )
+		getitem .item_exchangeID[.@i], .item_count[.@i] * .@count;
+	mes "good bye.";
+	close;
+OnInit:
+// Item gained
+// -----------
+	setarray .item_exchangeID, 7539; // item ID gained - you can add more ID <item ID>, <item ID>,...
+	setarray .item_count, 10; // item count gained - ( count of the item /element of array of .item_exchangeID )
+	set .size_count, getarraysize( .item_count );
+
+// Costume trade ID
+// size array must be < 128
+// use the synthaxe .costume_idX for adding news array
+// ------------------------------------------------
+	setarray .costume_id0, 20000, 20001;
+	setarray .costume_id1, 20002, 20003;
+	
+	while( getd( ".costume_id"+ .@i +"[0]" ) ) {
+		setd ".size_costume"+ .@i, getarraysize( getd( ".costume_id"+ .@i ) );
+		set .@i, .@i +1;
+	}
+	end;
+}

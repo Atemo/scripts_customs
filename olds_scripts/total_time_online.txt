@@ -1,0 +1,198 @@
+//===== rAthena Script =======================================
+//= Total time online
+//===== By: ==================================================
+//= Capuche
+//===== Current Version: =====================================
+//= 1.0
+//===== Compatible With: =====================================
+//= rAthena SVN
+//===== Description: =========================================
+//= Rank of player/account online since the beginning.
+//= Give reward by mail each week to the xY top online.
+//------------------------------------------------------
+//= Another version at the end of the script with a sql table.
+//= Choose your version.
+//============================================================
+
+prontera,149,129,5	script	TotalTimeOnline	857,{
+	
+	mes "^FF6600Time device^000000";
+	mes "My Game's Time.";
+	mes "- Account online since: ^777777"+ callfunc( "timeleft__", #secs_online + gettimetick(2) - @login_time ) +"^000000.";
+	mes "-----------------------------------";
+	mes "- Character online since: ^777777"+ callfunc( "timeleft__", time_online + gettimetick(2) - @login_time ) +"^000000.";
+	next;
+	if ( select( "^777777~ Top 5 accounts online.", ( getgmlevel() > 10 ? "~ Reset Ranking" : "" ), "~ Cancel^000000" ) == 3 ) close;
+	else if( @menu == 2 ) {
+		if( select( "Reset The character ranking.", "Reset The account time", "Cancel" ) == 3 ) close;
+		else if( @menu == 2 ) {
+			.@choice_reset$ = "account time";
+			.@var_name$ = "#secs_online";
+		}
+		else {
+			.@choice_reset$ = "character ranking";
+			.@var_name$ = "time_online";
+		}
+		mes "^FF6600Time device^000000";
+		mes "Are you sure to reset the "+ .@choice_reset$ +" ?";
+		mes "The players must be ^FF0000offline^000000 otherwise the update doesn't work.";
+		next;
+		if( select( "No", "Yes" ) == 1 ) close;
+		mes "^FF6600Time device^000000";
+		mes .@choice_reset$ +" reset.";
+		query_sql "DELETE FROM `global_reg_value` WHERE `global_reg_value`.`str` = '"+ escape_sql( .@var_name$ ) +"'";
+		close;
+	}
+	.@size = query_sql( "SELECT `char`.`name`, `value` FROM `global_reg_value` LEFT JOIN `char` ON `global_reg_value`.`char_id` = `char`.`char_id` WHERE global_reg_value.`str` = 'time_online' ORDER BY `value` DESC LIMIT 5", .@name$, .@value );
+	if( .@size ) {
+		.@origin = getcharid(3);
+		mes "^FF6600Time device^000000";
+		for( .@i = 0; .@i < .@size; .@i++ ) {
+			if( attachrid( getcharid( 3,.@name$[.@i] ) ) ) {
+				.@value[.@i] = time_online + gettimetick(2) - @login_time;
+				attachrid( .@origin );
+			}
+			mes "^777777"+ ( .@i +1 ) +"/^000000 "+ .@name$[.@i] +": ^FF0000"+ callfunc( "timeleft__", .@value[.@i] ) +"^000000";
+		}
+	}
+	close;
+
+OnPCLoginEvent:
+	// if( getgmlevel() > 10 ) end;
+	set @login_time, gettimetick(2);
+	end;
+OnPCLogoutEvent:
+	// if ( @login_time && getgmlevel() < 10 ) {// @login_time must be empty for gm but just in case
+		set #secs_online, #secs_online + (gettimetick(2)-@login_time);
+		time_online = time_online + gettimetick(2) - @login_time;
+	// }
+	end;
+OnSun0000:
+OnTue2310:
+	.@size = query_sql( "SELECT `char`.`char_id`, `char`.`account_id` FROM `char` LEFT JOIN `global_reg_value` ON `global_reg_value`.`char_id` = `char`.`char_id` WHERE global_reg_value.`str` = 'time_online' ORDER BY `value` DESC LIMIT "+ getarraysize( .reward_ID ), .@char_id, .@account_id );
+	for( .@i = 0; .@i < .@size; .@i++ ) {
+		query_sql("INSERT INTO `mail` (send_name,dest_id,title,message,nameid,amount,identify,zeny,time) "+
+					"VALUES ('no-reply',"+ .@char_id[.@i] +",'Reward Online',"+
+				  "'"+ escape_sql( .message$ ) +"',"+ .reward_ID[.@i] +","+ .reward_amount[.@i] +",0,"+ .reward_zeny[.@i] +",UNIX_TIMESTAMP(NOW()))");
+		if ( isloggedin( .@account_id[.@i], .@char_id[.@i] ) )
+			message rid2name( .@account_id[.@i] ),"You've got mail! Please re-login to update your mailing list.";
+	}
+	end;
+OnInit:
+	.message$ = "Here your reward for being in the top 5 of the character online this week !";
+	setarray .reward_ID, 501, 502, 503;
+	setarray .reward_amount, 1, 1, 1;
+	setarray .reward_zeny, 0, 0, 0;
+	end;
+}
+
+
+
+
+
+
+
+/*
+CREATE TABLE IF NOT EXISTS `time_online` (
+  `char_id` int(11) unsigned NOT NULL DEFAULT '0',
+  `value` varchar(1000) NOT NULL DEFAULT '0',
+  `account_id` int(11) unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`char_id`,`account_id`),
+  KEY `account_id` (`account_id`),
+  KEY `char_id` (`char_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+*/
+
+function	script	timeleft__	{
+function s;
+	if ( ( .@left = getarg(0) ) <= 0 ) return getarg(0);
+	.@week = .@left / 86400 * 7;
+	.@day = .@left / 86400;
+	.@hour = .@left % 86400 / 3600;
+	.@min = .@left % 3600 / 60;
+	.@sec = .@left % 60;
+	if( .@week )
+		return .@week +" week"+ s( .@week ) + .@day +" day"+ s( .@day ) + .@hour +" hour"+ s( .@hour );
+	else if ( .@day )
+		return .@day +" day"+ s( .@day ) + .@hour +" hour"+ s( .@hour );
+	else if ( .@hour )
+		return .@hour +" hour"+ s(.@hour) + .@min +" min" +s( .@min );
+	else if ( .@min )
+		return .@min +" min"+ s( .@min ) + .@sec +" sec"+ s( .@sec );
+	else
+		return .@sec +" sec"+ s( .@sec );
+
+function s { return ( getarg(0) > 1 ? "s " : " " ); }
+}
+
+prontera,149,129,5	script	TotalTimeOnline	857,{
+	query_sql "SELECT value FROM time_online WHERE char_id = "+ getcharid(0) +" LIMIT 1", .@time_char;
+	query_sql "SELECT value FROM time_online WHERE account_id = "+ getcharid(3) +" LIMIT 1", .@time_account;
+
+	mes "^FF6600Time device^000000";
+	mes "My Game's Time.";
+	mes "- Account online since: ^777777"+ callfunc( "timeleft__", .@time_account + gettimetick(2) - @login_time ) +"^000000.";
+	mes "-----------------------------------";
+	mes "- Character online since: ^777777"+ callfunc( "timeleft__", .@time_char + gettimetick(2) - @login_time ) +"^000000.";
+	next;
+	if ( select( "^777777~ Top 5 accounts online.", ( getgmlevel() > 10 ? "~ Reset Ranking" : "" ), "~ Cancel^000000" ) == 3 ) close;
+	else if( @menu == 2 ) {
+		if( select( "^777777~ Reset The character ranking.", "~ Reset The account time", "~ Cancel^000000" ) == 3 ) close;
+		else if( @menu == 2 ) {
+			.@choice_reset$ = "account time";
+			.@var_name$ = "account_id";
+		}
+		else {
+			.@choice_reset$ = "character ranking";
+			.@var_name$ = "char_id";
+		}
+		mes "^FF6600Time device^000000";
+		mes "Are you sure to reset the "+ .@choice_reset$ +" ?";
+		next;
+		if( select( "^777777~ No", "~ Yes^000000" ) == 1 ) close;
+		mes "^FF6600Time device^000000";
+		mes .@choice_reset$ +" reset.";
+		query_sql "DELETE FROM `time_online` WHERE `time_online`."+ escape_sql( .@var_name$ ) +" > 0";
+		close;
+	}
+	.@size = query_sql( "SELECT `char`.`name`, `value` FROM `time_online` LEFT JOIN `char` ON `time_online`.`char_id` = `char`.`char_id` WHERE time_online.`char_id` > 0 ORDER BY `value` DESC LIMIT 5", .@name$, .@value );
+	if( .@size ) {
+		.@origin = getcharid(3);
+		mes "^FF6600Time device^000000";
+		for( .@i = 0; .@i < .@size; .@i++ ) {
+			if( attachrid( getcharid( 3,.@name$[.@i] ) ) ) {
+				.@value[.@i] = .@value[.@i] + gettimetick(2) - @login_time;
+				attachrid( .@origin );
+			}
+			mes "^777777"+ ( .@i +1 ) +"/^000000 "+ .@name$[.@i] +": ^FF0000"+ callfunc( "timeleft__", .@value[.@i] ) +"^000000";
+		}
+	}
+	close;
+
+OnPCLoginEvent:
+	if( getgmlevel() >= 5) end;
+	set @login_time, gettimetick(2);
+	end;
+OnPCLogoutEvent:
+	if ( @login_time && getgmlevel() < 5 ) {// @login_time must be empty for gm but just in case
+		query_sql "INSERT INTO `time_online` VALUES ( "+ getcharid(0) +", 1, 0 ) ON DUPLICATE KEY UPDATE value = value + "+ ( gettimetick(2) - @login_time );
+		query_sql "INSERT INTO `time_online` VALUES ( 0, 1, "+ getcharid(3) +" ) ON DUPLICATE KEY UPDATE value = value + "+ ( gettimetick(2) - @login_time );
+	}
+	end;
+OnSun0000:
+	.@size = query_sql( "SELECT `char`.`char_id`, `char`.`account_id` FROM `char` LEFT JOIN `time_online` ON `time_online`.`char_id` = `char`.`char_id` WHERE time_online.`char_id` > 0 ORDER BY `value` DESC LIMIT "+ getarraysize( .reward_ID ), .@char_id, .@account_id );
+	for( .@i = 0; .@i < .@size; .@i++ ) {
+		query_sql("INSERT INTO `mail` (send_name,dest_id,title,message,nameid,amount,identify,zeny,time) "+
+					"VALUES ('no-reply',"+ .@char_id[.@i] +",'Reward Online',"+
+				  "'"+ escape_sql( .message$ ) +"',"+ .reward_ID[.@i] +","+ .reward_amount[.@i] +",0,"+ .reward_zeny[.@i] +",UNIX_TIMESTAMP(NOW()))");
+		if ( isloggedin( .@account_id[.@i], .@char_id[.@i] ) )
+			message rid2name( .@account_id[.@i] ),"You've got mail! Please re-login to update your mailing list.";
+	}
+	end;
+OnInit:
+	.message$ = "Here your reward for being in the top 5 of the character online this week !";
+	setarray .reward_ID, 501, 502, 503;
+	setarray .reward_amount, 1, 1, 1;
+	setarray .reward_zeny, 0, 0, 0;
+	end;
+}

@@ -1,0 +1,74 @@
+//===== rAthena Script =======================================
+//= Buff Guild
+//===== By: ==================================================
+//= Capuche
+//===== Current Version: =====================================
+//= 1.0
+//===== Compatible With: =====================================
+//= rAthena SVN
+//===== Description: =========================================
+//= Buff all guild members in the same map of the guild leader
+//= during the woe.
+//= Have a cooldown of 10 mins.
+//= Only talk to guild leader.
+//============================================================
+
+//	~~~~~ show time left in days, hours, minutes and seconds ~~~~~
+function	script	timeleft__	{
+	if ( ( .@left = getarg(0) ) <= 0 ) return getarg(0);
+	.@day = .@left / 86400;
+	.@hour = .@left % 86400 / 3600;
+	.@min = .@left % 3600 / 60;
+	.@sec = .@left % 60;
+	if ( .@day )
+		return .@day +" day "+ .@hour +" hour";
+	else if ( .@hour )
+		return .@hour +" hour "+ .@min +" min";
+	else if ( .@min )
+		return .@min +" min "+ .@sec +" sec";
+	else
+		return .@sec +" sec";
+}
+
+prontera,166,185,6	script	ghjkl	56,{
+
+	if( !getcharid(2) ) {
+		dispbottom "you are not in a guild !";
+		end;
+	}
+	else if( getguildmaster( getcharid(2) ) != strcharinfo(0) ) {
+		dispbottom "I only talk to your guildmaster, go away !";
+		end;
+	}
+	else if( cooldown_g > gettimetick(2) ) {
+		dispbottom "You must wait "+ callfunc( "timeleft__", cooldown_g - gettimetick(2) );
+		end;
+	}
+	.@size = query_sql( "SELECT name FROM guild_member WHERE guild_id = "+ getcharid(2), .@name$ );
+	.@map_leader$ = strcharinfo(3);
+	for( .@i = 0; .@i < .@size; .@i++ )
+		if( !getmapxy( .@map$, .@x, .@y, 0, .@name$[.@i] ) && .@map$ == .@map_leader$ ) {
+			.@s_name$[.@count] = .@name$[.@i];
+			.@count++;
+		}
+	if( Zeny < .cost * .@count ) end;
+	Zeny = Zeny - .cost * .@count;
+	cooldown_g = gettimetick(2) + 60 * 10;// 10min - should restricted @changegm during woe
+	for( .@i = 0; .@i < .@count; .@i++ ) {
+		attachrid( getcharid( 3,.@s_name$[.@i] ) );
+		percentheal 100,100;
+		specialeffect2 EF_INCAGILITY; sc_start SC_INCREASEAGI,240000,5;
+		specialeffect2 EF_BLESSING; sc_start SC_BLESSING,240000,5;
+	}
+	end;
+OnAgitstart:
+OnAgitstart2:
+	enablenpc strnpcinfo(0);
+	end;
+OnInit:
+	.cost = 1000; // Zeny/member
+OnAgitEnd:
+OnAgitEnd2:
+	disablenpc strnpcinfo(0);
+	end;
+}

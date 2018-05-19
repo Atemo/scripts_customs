@@ -1,0 +1,30 @@
+//===== rAthena Script =======================================
+//= Highest level
+//===== By: ==================================================
+//= Capuche
+//===== Current Version: =====================================
+//= 1.0
+//===== Compatible With: =====================================
+//= rAthena SVN
+//===== Description: =========================================
+//= Announce the player with the highest level in the server
+//============================================================
+
+-	script	oneideaforthename?	-1,{
+OnPCLoginEvent:
+OnPCBaseLvUpEvent:
+	if( getgmlevel() > 2 ) end;
+	if( getstrlen( $highest_level$ ) )
+		explode( .@h$, $highest_level$, "|" );
+	if( BaseLevel > atoi( .@h$ ) ) {
+		.@h$ = BaseLevel;
+		.@h$[1] = strcharinfo(0);
+		announce "[ "+ strcharinfo(0) +" ] ("+ BaseLevel +") has the highest level in the serveur !", 0;
+	}
+	else if( .@h$[1] == strcharinfo(0) && BaseLevel < atoi(.@h$) ) {
+		.@h$ = 0;
+		.@h$[1] = "";
+	}
+	$highest_level$ = implode( .@h$, "|" );
+	end;
+}

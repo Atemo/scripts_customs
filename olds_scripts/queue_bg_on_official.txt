@@ -1,0 +1,310 @@
+//===== rAthena Script =======================================
+//= Queue Battleground
+//===== By: ==================================================
+//= Capuche
+//===== Current Version: =====================================
+//= 1.0
+//===== Compatible With: =====================================
+//= rAthena SVN
+//===== Description: =========================================
+//= A sample queue system to register in official bg.
+//= Diff of official bg at the end of the script.
+//============================================================
+
+bat_room,178,162,5	script	Register BG	56,{
+function CheckPlayerBg; function RegisterBg;
+
+	if( @side_tmp ) {
+		mes "You already are on the waiting line...";
+		mes "You have ^FF0000"+ ( getd( ".signup_count_"+ .name_bg$[ @bg_type ] + @side_tmp ) -1 ) +"^000000 People(s) before you.";
+		close;
+	}
+	mes "Would you like to compete ?";
+	next;
+	if( select( "Let's do it!", "no thanks" ) -1 ) close;
+	if( .random_bg ) // Random BG ?
+		.@s = .random_bg;
+	else {
+		mes "Select the bg.";
+		.@s = select( .menu_bg$ ) -1;
+	}
+	if( getd( ".random_"+ .name_bg$[.@s] ) ) // random team ? Croix or Guillaume
+		@side_tmp = .@side =  ( getd( ".signup_count_"+ .name_bg$[.@s] +"1" ) == getd( ".min_size_"+ .name_bg$[.@s] ) ? 2 : ( getd( ".signup_count_"+ .name_bg$[.@s] +"2" ) == getd( ".min_size_"+ .name_bg$[.@s] ) ? 1 : rand( 1,2 ) ) );
+	else
+		@side_tmp = .@side = select( ( getd( ".signup_count_"+ .name_bg$[.@s] + "1" ) == getd( ".min_size_"+ .name_bg$[.@s] ) ? "" : "Croix side" ), ( getd( ".signup_count_"+ .name_bg$[.@s] + "2" ) == getd( ".min_size_"+ .name_bg$[.@s] ) ? "" : "Guillaume side" ) );
+
+	setd ".signup_aid_"+ .name_bg$[.@s] + .@side +"["+ getd( ".signup_count_"+ .name_bg$[.@s] + .@side ) +"]", getcharid(3);
+	setd ".signup_count_"+ .name_bg$[.@s] + .@side, getd( ".signup_count_"+ .name_bg$[.@s] + .@side ) +1;
+	CheckPlayerBg(); // Just clean the array queue
+	@bg_type = .@s;
+	switch( .@s ){
+		case 0: donpcevent "start#bat_b01::OnReadyCheck"; break;
+		case 1: donpcevent "start#bat_a01::OnReadyCheck"; break;
+		case 2: donpcevent "KvM01_BG::OnReadyCheck";
+	}
+	close;
+
+
+// Functions Part
+// --------------
+
+// Assign a BG ID to the player when the bg start
+// Delete aid and the count of players in the array queue
+
+function RegisterBg {
+	.@s = getarg(0);
+	for( .@i = 0; .@i < getd( ".min_size_"+ .name_bg$[.@s] ); .@i++ ) {
+		setbgid getarg(1),  getd( ".signup_aid_"+ .name_bg$[.@s] +"1[" +.@i +"]" );
+		setbgid getarg(2),  getd( ".signup_aid_"+ .name_bg$[.@s] +"2[" +.@i +"]" );
+	}
+	deletearray getd( ".signup_aid_"+ .name_bg$[.@s] +"1" ), getd( ".min_size_"+ .name_bg$[.@s] );
+	deletearray getd( ".signup_aid_"+ .name_bg$[.@s] +"2" ), getd( ".min_size_"+ .name_bg$[.@s] );
+	setd ".signup_count_"+ .name_bg$[.@s] +"1", getd( ".signup_count_"+ .name_bg$[.@s] +"1" ) - getd( ".min_size_"+ .name_bg$[.@s] );
+	setd ".signup_count_"+ .name_bg$[.@s] +"2", getd( ".signup_count_"+ .name_bg$[.@s] +"2" ) - getd( ".min_size_"+ .name_bg$[.@s] );
+	if( .random_bg ) .random_bg = rand( 1,.size_bg );
+	end;
+}
+
+// clear the array
+// send the player's position to his character in the bg queue
+
+function CheckPlayerBg {
+	for( .@side = 1; .@side < 3; .@side++ ) {
+		for( .@j = 0; .@j < .size_bg; .@j++ ) {
+			for ( set .@i, 0; .@i < getd( ".signup_count_"+ .name_bg$[.@j] + .@side ); set .@i, .@i +1 ) {
+				if ( getd( ".signup_aid_"+ .name_bg$[.@j] + .@side +"["+.@i+"]" ) != getarg( 0,1 ) && attachrid( getd( ".signup_aid_"+ .name_bg$[.@j] + .@side +"["+.@i+"]" ) ) ) {
+					if ( getmapflag( strcharinfo(3), mf_battleground ) ) { // has join another bg, just in case
+						deletearray getd( ".signup_aid_"+ .name_bg$[.@j] + .@side +"["+.@i+"]" ), 1;
+						setd ".signup_count_"+ .name_bg$[.@j] + .@side, getd( ".signup_count_"+ .name_bg$[.@j] + .@side ) -1;
+						@bg_type = @side_tmp = 0;
+						.@i--;
+					}
+					else {
+						dispbottom "You have ^FF0000"+ ( getd( ".signup_count_"+ .name_bg$[.@j] + .@side ) - .@i -1 ) +"^000000 Peoples before you.";
+						@bg_type = .@j;
+						@side_tmp = .@side;
+					}
+				}
+				else {
+					deletearray getd( ".signup_aid_"+ .name_bg$[.@j] + .@side +"["+.@i+"]" ), 1;
+					setd ".signup_count_"+ .name_bg$[.@j] + .@side, getd( ".signup_count_"+ .name_bg$[.@j] + .@side ) -1;
+					.@i--;
+				}	
+			}
+		}
+	}
+	return;
+}
+
+
+
+// Event Part
+// ----------
+
+OnFlaviusStart:
+	$@FlaviusBG1_id2 = createbgid( "bat_b01",390,10,"start#bat_b01::OnCroixQuit","" );
+	$@FlaviusBG1_id1 = createbgid( "bat_b01",10,290,"start#bat_b01::OnGuillaumeQuit","" );
+	RegisterBg( 0, $@FlaviusBG1_id1, $@FlaviusBG1_id2 ); // ( bg index in .name_bg$ )	( bg1 id )		( bg2 id )
+
+OnTierraStart:
+	$@TierraBG1_id1 = createbgid( "bat_a01",50,374,"start#bat_a01::OnGuillaumeQuit","" );
+	$@TierraBG1_id2 = createbgid( "bat_a01",42,16,"start#bat_a01::OnCroixQuit","" );
+	RegisterBg( 1, $@TierraBG1_id1, $@TierraBG1_id2 );
+
+OnKvMStart:
+	$@KvM01BG_id1 = createbgid( "bat_c01",52,129,"KvM01_BG::OnGuillaumeQuit","KvM01_BG::OnGuillaumeDie" );
+	$@KvM01BG_id2 = createbgid( "bat_c01",147,55,"KvM01_BG::OnCroixQuit","KvM01_BG::OnCroixDie" );
+	RegisterBg( 2, $@KvM01BG_id1, $@KvM01BG_id2 );
+
+OnPCLogoutEvent:
+	CheckPlayerBg( getcharid(3) ); // Clear the array queue and delete the aid
+	end;
+
+OnPCLoadMapEvent:
+	if( compare( strcharinfo(3), "bat_" ) || strcharinfo(3) == strnpcinfo(4) )
+		@bg_type = @side_tmp = 0;
+	end;
+OnInit:
+	.random_bg = 0;						// random bg ( 1 : random, 0 : choice bg )
+
+	.random_Flavius = 1;				// Flavius random ? ( 1 : random, 0 : choice ) - if 1 the player has no choice he is sent in a random team
+	.random_Tierra = 1;					// Tierra random ?
+	.random_KvM = 1;					// KvM random ?
+
+	.min_size_Flavius = 1;				// number min of players to start Flavius - must be the SAME in the flavius setting in the svn
+	.min_size_KvM = 1;					// 								  Tierra
+	.min_size_Tierra = 1;				// 								  KvM
+
+	setarray .name_bg$, "Flavius", "Tierra", "KvM"; // Menu + is used to set the variables. Don't touch if you don't know what you do.
+
+// Others - no need to touch
+	setmapflag "bat_a01",mf_loadevent;	// mapflag to clear the @ bg variables
+	setmapflag "bat_b01",mf_loadevent;
+	setmapflag "bat_c01",mf_loadevent;
+	setmapflag strnpcinfo(4),mf_loadevent;
+
+	mapannounce strnpcinfo(4), "An admin had reload please re-enregister.",0;
+	mapwarp strnpcinfo(4),"prontera",150,150,0;	// to clear the @ bg variables when @reload
+
+	.size_bg = getarraysize( .name_bg$ );
+	.menu_bg$ = implode( .name_bg$, ":" );
+	if( .random_bg ) .random_bg = rand( 1,.size_bg );
+	end;
+}
+
+/*
+
+Index: npc/battleground/flavius/flavius01.txt
+===================================================================
+--- npc/battleground/flavius/flavius01.txt	(révision 17251)
++++ npc/battleground/flavius/flavius01.txt	(copie de travail)
+@@ -22,21 +22,22 @@
+ //============================================================
+ bat_room,86,227,4	script	Lieutenant Ator	418,{
+ 	end;
+-OnInit:
+-	waitingroom "Battle Station",11,"start#bat_b01::OnReadyCheck",1,0,80;
+-	end;
++// OnInit:
++	// waitingroom "Battle Station",2,"start#bat_b01::OnReadyCheck",1,0,80;
++	// end;
+ OnEnterBG:
+-	set $@FlaviusBG1_id1, waitingroom2bg("bat_b01",10,290,"start#bat_b01::OnGuillaumeQuit","");
++	// set $@FlaviusBG1_id1, waitingroom2bg("bat_b01",10,290,"start#bat_b01::OnGuillaumeQuit","");
+ 	end;
+ }
+ 
+ bat_room,85,204,0	script	Lieutenant Thelokus	414,{
+ 	end;
+-OnInit:
+-	waitingroom "Battle Station",11,"start#bat_b01::OnReadyCheck",1,0,80;
+-	end;
++// OnInit:
++	// waitingroom "Battle Station",11,"start#bat_b01::OnReadyCheck",1,0,80;
++	// end;
+ OnEnterBG:
+-	set $@FlaviusBG1_id2, waitingroom2bg("bat_b01",390,10,"start#bat_b01::OnCroixQuit","");
++	// set $@FlaviusBG1_id2, waitingroom2bg("bat_b01",390,10,"start#bat_b01::OnCroixQuit","");
++	donpcevent "Register BG::OnFlaviusStart";
+ 	end;
+ }
+ 
+@@ -79,13 +80,15 @@
+ OnReadyCheck:
+ 	if( $@FlaviusBG1 )
+ 		end;
+-	set .@Guillaume, getwaitingroomstate(0,"Lieutenant Ator");
+-	set .@Croix, getwaitingroomstate(0,"Lieutenant Thelokus");
++//	set .@Guillaume, getwaitingroomstate(0,"Lieutenant Ator");
++//	set .@Croix, getwaitingroomstate(0,"Lieutenant Thelokus");
++	set .@Croix, getvariableofnpc( .signup_count_Flavius1, "Register BG" );
++	set .@Guillaume, getvariableofnpc( .signup_count_Flavius2, "Register BG" );
+ 	if( !.@Guillaume && !.@Croix ) {
+ 		donpcevent "#bat_b01_timer::OnStop";
+ 		end;
+ 	}
+
+Index: npc/battleground/kvm/kvm01.txt
+===================================================================
+--- npc/battleground/kvm/kvm01.txt	(révision 17251)
++++ npc/battleground/kvm/kvm01.txt	(copie de travail)
+@@ -24,12 +24,12 @@
+ bat_room,169,226,5	script	KVM Waiting Room#a::KvM01R_Guillaume	418,{
+ 	end;
+ 
+-OnInit:
+-	waitingroom "Battle Station 5 Players",6,"KvM01_BG::OnGuillaumeJoin",1;
+-	end;
++// OnInit:
++	// waitingroom "Battle Station 5 Players",6,"KvM01_BG::OnGuillaumeJoin",1;
++	// end;
+ 	
+ OnEnterBG:
+-	set $@KvM01BG_id1, waitingroom2bg("bat_c01",52,129,"KvM01_BG::OnGuillaumeQuit","KvM01_BG::OnGuillaumeDie");
++	// set $@KvM01BG_id1, waitingroom2bg("bat_c01",52,129,"KvM01_BG::OnGuillaumeQuit","KvM01_BG::OnGuillaumeDie");
+ 	end;
+ }
+ 
+@@ -38,12 +38,13 @@
+ bat_room,169,205,3	script	KVM Waiting Room#b::KvM01R_Croix	414,{
+ 	end;
+ 
+-OnInit:
+-	waitingroom "Battle Station 5 Players",6,"KvM01_BG::OnCroixJoin",1;
+-	end;
++// OnInit:
++	// waitingroom "Battle Station 5 Players",6,"KvM01_BG::OnCroixJoin",1;
++	// end;
+ 
+ OnEnterBG:
+-	set $@KvM01BG_id2, waitingroom2bg("bat_c01",147,55,"KvM01_BG::OnCroixQuit","KvM01_BG::OnCroixDie");
++	// set $@KvM01BG_id2, waitingroom2bg("bat_c01",147,55,"KvM01_BG::OnCroixQuit","KvM01_BG::OnCroixDie");
++	donpcevent "Register BG::OnKvMStart";
+ 	end;
+ }
+ 
+@@ -173,10 +174,12 @@
+ OnReadyCheck:
+ 	if( $@KvM01BG )
+ 		end;
+-	set .@Guillaume, getwaitingroomstate(0,"KvM01R_Guillaume");
+-	set .@Croix, getwaitingroomstate(0,"KvM01R_Croix");
++	// set .@Guillaume, getwaitingroomstate(0,"KvM01R_Guillaume");
++	// set .@Croix, getwaitingroomstate(0,"KvM01R_Croix");
++	set .@Croix, getvariableofnpc( .signup_count_KvM1, "Register BG" );
++	set .@Guillaume, getvariableofnpc( .signup_count_KvM2, "Register BG" );
+
+Index: npc/battleground/tierra/tierra01.txt
+===================================================================
+--- npc/battleground/tierra/tierra01.txt	(révision 17251)
++++ npc/battleground/tierra/tierra01.txt	(copie de travail)
+@@ -23,24 +23,25 @@
+ bat_room,57,227,5	script	Lieutenant Kalos	418,{
+ 	end;
+ 
+-OnInit:
+-	waitingroom "Battle Station",11,"start#bat_a01::OnReadyCheck",1,0,80;
+-	end;
++// OnInit:
++	// waitingroom "Battle Station",11,"start#bat_a01::OnReadyCheck",1,0,80;
++	// end;
+ 
+ OnEnterBG:
+-	set $@TierraBG1_id1, waitingroom2bg("bat_a01",50,374,"start#bat_a01::OnGuillaumeQuit","");
++	// set $@TierraBG1_id1, waitingroom2bg("bat_a01",50,374,"start#bat_a01::OnGuillaumeQuit","");
+ 	end;
+ }
+ 
+ bat_room,58,204,1	script	Lieutenant Eyor	414,{
+ 	end;
+ 
+-OnInit:
+-	waitingroom "Battle Station",11,"start#bat_a01::OnReadyCheck",1,0,80;
+-	end;
++// OnInit:
++	// waitingroom "Battle Station",11,"start#bat_a01::OnReadyCheck",1,0,80;
++	// end;
+ 
+ OnEnterBG:
+-	set $@TierraBG1_id2, waitingroom2bg("bat_a01",42,16,"start#bat_a01::OnCroixQuit","");
++	// set $@TierraBG1_id2, waitingroom2bg("bat_a01",42,16,"start#bat_a01::OnCroixQuit","");
++	donpcevent "Register BG::OnTierraStart";
+ 	end;
+ }
+ 
+@@ -127,13 +128,15 @@
+ OnReadyCheck:
+ 	if( $@TierraBG1 )
+ 		end;
+-	set .@Guillaume, getwaitingroomstate(0,"Lieutenant Kalos");
+-	set .@Croix, getwaitingroomstate(0,"Lieutenant Eyor");
++	// set .@Guillaume, getwaitingroomstate(0,"Lieutenant Kalos");
++	// set .@Croix, getwaitingroomstate(0,"Lieutenant Eyor");
++	set .@Croix, getvariableofnpc( .signup_count_Tierra1, "Register BG" );
++	set .@Guillaume, getvariableofnpc( .signup_count_Tierra2, "Register BG" );
+ 	if( !.@Guillaume && !.@Croix ) {
+ 		donpcevent "#bat_a01_timer::OnStop";
+ 		end;
+ 	}
+
+*/

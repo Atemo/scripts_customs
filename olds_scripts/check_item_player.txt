@@ -1,0 +1,47 @@
+//===== rAthena Script =======================================
+//= Check amount item
+//===== By: ==================================================
+//= Capuche
+//===== Current Version: =====================================
+//= 1.0
+//===== Compatible With: =====================================
+//= rAthena SVN
+//===== Description: =========================================
+//= Check the amount of Items in the inventory, storage
+//= guild storage, cart of the specific player.
+//= Specific player must be offline to make sure of amount
+//= Items.
+//============================================================
+
+
+prontera,166,185,6	script	ghjkl	56,{
+	mes "Enter a name.";
+	input .@n$;
+
+	if ( query_sql("SELECT `account_id` FROM `char` WHERE `name` = '"+ escape_sql( .@n$ ) +"'", .@a_id ) ) {
+		query_sql("SELECT `char_id`, `guild_id` FROM `char` WHERE `account_id` = '"+ .@a_id +"'", .@c_id, .@g_id );
+		mes "Input an item ID.";
+		input .@item;
+		if( getitemname( .@item ) == "" ) {
+			mes "wrong item ID";
+			close;
+		}
+		for( .@i = 0; .@i < getarraysize( .@c_id ); .@i++ ) {
+			query_sql( "SELECT SUM(`amount`) FROM `inventory` WHERE `char_id` = "+ .@c_id[.@i] +" AND `nameid` = "+ .@item, .@count_inv );
+			query_sql( "SELECT SUM(`amount`) FROM `cart_inventory` WHERE `char_id` = "+ .@c_id[.@i] +" AND `nameid` = "+ .@item, .@count_cart );
+			query_sql( "SELECT SUM(`amount`) FROM `guild_storage` WHERE `guild_id` = "+ .@g_id[.@i] +" AND `nameid` = "+ .@item, .@count_gsto );
+			.@inv = .@inv + .@count_inv + .@count_cart;
+			.@gsto = .@gsto + .@count_gsto;
+		}
+		query_sql( "SELECT SUM(`amount`) FROM `storage` WHERE `account_id` = "+ .@a_id +" AND `nameid` = "+ .@item, .@count_sto );
+		.@inv = .@inv + .@count_sto;
+	}
+	else {
+		mes "Character '"+ .@n$ +"' does not exist.";
+		close;
+	}
+	mes "Character '"+ .@n$ +"' has ^0055FF"+ .@inv +"^000000 "+ getitemname( .@item ) +" ("+ .@item +") in his account (storage, inventory, cart inventory).",
+		( !.@gsto ? "" : ( "And ^0055FF"+ .@gsto +"^000000 "+ getitemname( .@item ) +" in guild storage on all his character." ) );
+	
+	close;
+}

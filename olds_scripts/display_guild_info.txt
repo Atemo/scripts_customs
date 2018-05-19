@@ -1,0 +1,109 @@
+//===== rAthena Script =======================================
+//= Guild manager
+//===== By: ==================================================
+//= Capuche
+//===== Current Version: =====================================
+//= 1.0
+//===== Compatible With: =====================================
+//= rAthena SVN
+//===== Description: =========================================
+//= Display informations of a select guild - castle own,
+//= master, members online/offline...
+//============================================================
+
+prontera,155,155,5	script	Guild manager	56,{
+//- Limit 128 guild names
+//- NPC name
+	.@npc$ = "[ Guild manager ]";
+//--------------------------------------
+
+L_list:
+// Delete variables
+// ----------------
+	if( .@m ) {
+		.@m = 0;
+		.@cast_owned$ = "";
+		setarray .@var$, ".@guild_id", ".@name$", ".@master$", ".@guild_lv", ".@connect_member", ".@max_member", ".@name_m$", ".@castle_id";
+		for( .@i = 0; .@i < getarraysize( .@var$ ); .@i++ )
+			deletearray getd( .@var$[ .@i ] ), getarraysize( getd( .@var$[ .@i ] ) );
+	}
+
+// Count guild
+// -----------
+	query_sql( "SELECT COUNT(`guild_id`) FROM `guild`", .@count );
+
+	mes .@npc$;
+	mes " ";
+	mes "Total: ^FF0000"+ .@count +"^000000 guild"+ ( .@count -1 ? "s." : "." );
+	mes "Select a guild for more informations.";
+	next;
+
+
+// Menu display name guild
+// -----------------------
+	query_sql( "SELECT `guild_id`, `name`, `master`, `guild_lv` FROM `guild` ORDER BY `guild_id` ASC limit 128",
+					.@guild_id, .@name$, .@master$, .@guild_lv );
+
+	.@s = select( implode( .@name$, ":" ) ) -1;
+	
+	.@c = query_sql( "SELECT `castle_id` FROM `guild_castle` WHERE `guild_id` = '"+ .@guild_id[ .@s ] +"'", .@castle_id );
+	for( .@i = 0; .@i < .@c; .@i++ )
+		.@cast_owned$ = .@cast_owned$ + .castle$[ .@castle_id[ .@i ] ] + ( .@i == .@c -1 ? "" : ", " );
+
+	.@size = query_sql( "SELECT `name` FROM `guild_member` WHERE `guild_id`= '"+ .@guild_id[ .@s ] +"' ORDER BY `position` ASC", .@name_m$ );
+	for( .@i = 0; .@i < .@size; .@i++ )
+		if( getcharid( 0,.@name_m$[ .@i ] ) )
+			.@m++;
+
+	mes .@npc$;
+	mes "Guild name: ^FF0000"+ .@name$[ .@s ] +"^000000",
+		"Master name: ^FFCC00"+ .@master$[ .@s ] +"^000000",
+		"Guild lvl: ^FF00CC"+ .@guild_lv[ .@s ] +"^000000",
+		"Members Online: ^0000FF"+ .@m +"^000000",
+		"Castle owned: ^CC00CC"+ ( .@c ? .@cast_owned$ : "None" ) +"^000000";
+
+
+// Menu members
+// ------------
+	switch( select( "~ ^777777Informations members^000000", "~ ^777777Cancel^000000", "~ ^777777Choose another guild^000000" ) ) {
+		case 1:
+			next;
+			break;
+		case 2:
+			next;
+			mes .@npc$;
+			mes " ";
+			mes "See you soon ^-^";
+			close;
+		case 3:
+			next;
+			goto L_list;
+	}
+
+	deletearray .@name_m$, getarraysize( .@name_m$ );
+	.@size = query_sql( "SELECT `name` FROM `guild_member` WHERE `guild_id`= '"+ .@guild_id[ .@s ] +"' ORDER BY `position` ASC", .@name_m$ );
+
+	mes .@npc$;
+	mes "Members of ^0000FF"+ .@name$[ .@s ] +"^000000 guild.",
+		"- Red: currently ^FF0000offline^000000.",
+		"- Green: currently ^00C957online^000000.",
+		" ";
+
+	for( .@i = 0; .@i < .@size; .@i++ )
+		mes "-> "+ ( getcharid( 0,.@name_m$[ .@i ] ) ? "^00C957" : "^FF0000" ) + .@name_m$[ .@i ] +"^000000";
+	next;
+	goto L_list;
+
+	
+
+OnInit:
+	deletearray .castle$, getarraysize( .castle$ );	//- prevent duplicate
+setarray .castle$, "Neuschwanstein",	"Hohenschwangau",	"Nuernberg",	"Wuerzburg",	"Rothenburg",
+					"Repherion",		"Eeyolbriggar",		"Yesnelph",		"Bergel",		"Mersetzdeitz",
+					"Bright Arbor",		"Scarlet Palace",	"Holy Shadow",	"Sacred Altar",	"Bamboo Grove Hill",
+					"Kriemhild",		"Swanhild",			"Fadhgridh",	"Skoegul",		"Gondul",
+					"Earth",			"Air",				"Water",		"Fire",			"Himinn",
+					"Andlangr",			"Viblainn",			"Hljod",		"Skidbladnir",	"Mardol",
+					"Cyr",				"Horn",				"Gefn",			"Bandis";
+	end;
+}

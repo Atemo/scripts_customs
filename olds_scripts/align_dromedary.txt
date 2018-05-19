@@ -1,0 +1,77 @@
+//===== rAthena Script =======================================
+//= Align
+//===== By: ==================================================
+//= Capuche
+//===== Current Version: =====================================
+//= 1.0
+//===== Compatible With: =====================================
+//= rAthena SVN
+//===== Description: =========================================
+//= Align the dromedary in the same direction
+//= to winning... well nothing for now. Just for fun.
+//============================================================
+
+prontera,150,170,6	script	Align	742,{
+	npctalk "Force the dromedary to be in the same direction.";
+	if( getgmlevel() < 99 ) end;
+	goto OnTimer180000;	
+OnWin:
+	npctalk "Bravo ! You take "+ ( getnpctimer(0) / 1000 ) +" seconds!";
+	monster "prontera",155,172,"--ja--",1324,1;
+	.@win++;
+	sleep 5000;
+OnTimer180000:
+	if( !.@win )
+		npctalk "You take to much time... to bad!";
+	stopnpctimer;
+	setnpctimer 0;
+	// .timer_play = 0;
+OnInit:
+	setarray .direction, 2, 6, 2, 6, 6, 2, 6;
+	for( .@i = 0; .@i < 7; .@i++ ) {
+		// .direction[ .@i ] = rand(2) ? 2 : 6;
+		getmapxy .@map$, .@x, .@y, 1, "#npcswitch_1_"+ .@i;
+		movenpc "#npcswitch_1_"+ .@i, .@x, .@y, .direction[ .@i ];
+	}
+	end;
+}
+
+prontera,152,164,6	script	#npcswitch_1_0	938,{
+	if( !getnpctimer( 0,"Align" ) ) {
+		initnpctimer "Align";
+		// set getvariableofnpc( .timer_play, "Align" ), gettimetick(2);
+		deletearray .tmp;
+		for( .@i = 0; .@i < 7; .@i++ )
+			.tmp[ .@i ] = getvariableofnpc( .direction[ .@i ], "Align" );
+	}
+	while ( .@i < 7 && strnpcinfo(0) != "#npcswitch_1_"+.@i ) .@i++;
+	switch( .@i ) {
+		case 0: setarray .@switch_[0], .@i, 1, 2;	break;
+		case 1: setarray .@switch_[0], .@i, 3, 4;	break;
+		case 2: setarray .@switch_[0], .@i, 5, 6;	break;
+		case 3:
+		case 4: setarray .@switch_[0], .@i, 0, 2;	break;
+		case 5:
+		case 6: setarray .@switch_[0], .@i, 0, 1;
+	}
+	for ( .@j = 0; .@j < getarraysize( .@switch_ ); .@j++ ) {
+		.tmp[ .@switch_[.@j] ] = ( .tmp[ .@switch_[.@j] ] == 2 ? 6 : 2 );
+		getmapxy .@map$, .@x, .@y, 1, "#npcswitch_1_"+ .@switch_[.@j];
+		movenpc "#npcswitch_1_"+ .@switch_[.@j], .@x, .@y, .tmp[ .@switch_[.@j] ];
+	}
+	while ( .@k < 6 && .tmp[.@k] == .tmp[.@k +1] ) .@k++;
+	if( .@k == 6 ) donpcevent "Align::OnWin";
+	end;
+	
+	
+// 		4		6
+//	2		0		1
+//		3		5
+}
+
+prontera,158,164,6	duplicate(#npcswitch_1_0)	#npcswitch_1_1	938
+prontera,146,164,6	duplicate(#npcswitch_1_0)	#npcswitch_1_2	938
+prontera,149,161,2	duplicate(#npcswitch_1_0)	#npcswitch_1_3	938
+prontera,149,167,2	duplicate(#npcswitch_1_0)	#npcswitch_1_4	938
+prontera,155,161,2	duplicate(#npcswitch_1_0)	#npcswitch_1_5	938
+prontera,155,167,2	duplicate(#npcswitch_1_0)	#npcswitch_1_6	938

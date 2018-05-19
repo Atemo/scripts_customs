@@ -1,0 +1,55 @@
+//===== rAthena Script =======================================
+//= Cmd Banker
+//===== By: ==================================================
+//= Capuche
+//===== Current Version: =====================================
+//= 1.0
+//===== Compatible With: =====================================
+//= rAthena SVN
+//===== Description: =========================================
+//= Works like a banker.
+//- @bn : display the amount of zeny in bank in a message
+//- @withdrawlbn <value> : withdrawl an amount of zeny
+//- @depositbn <value> : deposit an amount of zeny
+//============================================================
+
+-	script	atcmd_bank	-1,{
+OnInit:
+	bindatcmd("bn","atcmd_bank::Onbn");
+	bindatcmd("withdrawlbn","atcmd_bank::Ontradebn");
+	bindatcmd("depositbn","atcmd_bank::Ondeposit");
+	end;
+
+Onbn:
+	message strcharinfo(0),"You currently have " + #bankstorage + " Zeny in your account.";
+	end;
+	
+Ontradebn:
+	if( atoi(.@atcmd_parameters$[0]) < 1 )
+		message strcharinfo(0),"Please don't play games. I need a real amount to withdraw.";
+	else if( atoi(.@atcmd_parameters$[0]) > #bankstorage )
+		message strcharinfo(0),"I show you only have ^00FF00" + #bankstorage +"^000000 zeny in your account!";
+	else {
+		set Zeny,Zeny + atoi(.@atcmd_parameters$[0]);
+		set #bankstorage,#bankstorage - atoi(.@atcmd_parameters$[0]);
+		message strcharinfo(0),"There's your Zeny. Have a good day.";
+		message strcharinfo(0), "############## Withdrawl: " +.@atcmd_parameters$[0]+ " Zeny ##############";
+		message strcharinfo(0), "####### You have now " +#bankstorage+ " Zeny in Bank #######"; }
+	end;
+	
+Ondeposit:
+	if( atoi(.@atcmd_parameters$[0]) < 1 )
+		message strcharinfo(0),"Make sure you ask me to deposit a real amount.";
+	else if( atoi(.@atcmd_parameters$[0]) > Zeny )
+		message strcharinfo(0),"It does not appear like you have the amount of zeny you're trying to deposit!";
+	else if( atoi(.@atcmd_parameters$[0]) + #bankstorage > 2000000000 ) {
+		message strcharinfo(0),"Sorry, Bank Storage is full.";
+		message strcharinfo(0), "####### You have " +#bankstorage+ " Zeny in Bank #######"; }
+	else {
+		set Zeny,Zeny - atoi(.@atcmd_parameters$[0]);
+		set #bankstorage,#bankstorage + atoi(.@atcmd_parameters$[0]);
+		message strcharinfo(0),"Thank you very much... Your zeny is in good hands.";
+		message strcharinfo(0), "############## Deposit: " +.@atcmd_parameters$[0]+ " Zeny ##############";
+		message strcharinfo(0), "####### You have now " +#bankstorage+ " Zeny in Bank #######"; }
+	end;
+}

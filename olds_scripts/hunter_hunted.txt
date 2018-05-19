@@ -1,0 +1,340 @@
+//===== rAthena Script =======================================
+//= Hunting Player
+//===== By: ==================================================
+//= Capuche
+//===== Current Version: =====================================
+//= 1.0
+//===== Compatible With: =====================================
+//= rAthena SVN
+//===== Description: =========================================
+//= Base on a request from Paulind :
+//= http://rathena.org/board/topic/80798-pvp-script-hunters-hunted/
+//------------------------------------------------------
+//= Players register in the npc. After 10 mins, the npc give
+//= a unique and random number 1-128 and a target.
+//= The player kill his target => 3 points,
+//= otherwise => 1 point.
+//= 5 players with 30 points => end of event.
+//= @hunter command to display hunter points of player online.
+//============================================================
+
+prontera,154,150,5	script	Hunter Register	87,{
+function isinlist;	//return the index of the player in the list ; -1 if not
+function newtarget;	// set a new target in the online character list
+function initArrayNumber;	// initialize an array size 128 ; each column is incremented +1 starting to 1
+function initOnlineArray;	// copy data of players register online in some array + warp players
+function PlayerGetReward;	// give a reward for each player online PO ; disabled fakename
+function dispatchAllTarget;	// give a target for each PO
+function sortPointArray;	// sort the online array order by point
+function deleteAllVar;	// delete all variables unused
+function AddPoint;	// add/remove hunters points
+
+	mes .npc_name$;
+	mes "Wanna register in the hunter event ?";
+	next;
+	if ( prompt( ( .start == 2 ? "^777777~ Warp on event map^000000" : "" ), ( .start == 1 ? "^777777~ Register ?^000000" : "" ), "^777777~ About the event^000000", ( getgmlevel() > 59 ? "^FF0000[GM] Start/Stop Event^000000" : "" ) ) == 3 ) {
+		mes .npc_name$;
+		mes "Every 4 hours.. Wait 10 mins... battle...";
+		close;
+	}
+	else if ( @menu == 4 ) {	// gm menu
+		if ( .start )
+			select ( "Stop the event ?" );
+		else
+			select ( "Start the event ?" );
+		if ( .start )
+			awake strnpcinfo(0);
+		else
+			goto OnHour20;
+		end;
+	}
+	else if ( .size_array_init > 127 && @menu == 2 ) {
+		mes .npc_name$;
+		mes "The event queue is full";
+		close;
+	}
+	else if ( isinlist( ".list_init_cid", ".size_array_init" ) != -1 ) {
+		if ( @menu == 1 ) {
+			warp .event_map$,0,0;
+			end;
+		}
+		mes .npc_name$;
+		mes "You're already on my list";
+		close;
+	}
+	else if ( @menu == 1 ) end;
+	else if ( @menu == 2 ) {
+		.list_init_cid[ .size_array_init ] = getcharid(0);
+		.list_init_aid[ .size_array_init ] = getcharid(3);
+
+		.@i = rand( .size_num );
+		.dispatch_num_init[ .size_array_init ] = .num[.@i];
+
+		deletearray .num[.@i], 1;
+		.size_array_init++;
+		.size_num--;
+		
+		message strcharinfo(0),"You're now on the list.";
+	}
+	end;
+
+OnHour00:
+OnHour04:
+OnHour08:
+OnHour12:
+OnHour16:
+OnHour20:
+	initArrayNumber();	// initialize array to dispatch number to player
+	.start = 1;
+	initnpctimer;
+	announce "[ Hunter Event ] : The event will start in 10 min !",0;
+	end;
+
+OnTimer600000:	// 10 mins
+	announce "[ Hunter Event ] : Event start.",0;
+	.start = 2;
+	stopnpctimer;
+	initOnlineArray();
+	bindatcmd "hunter",strnpcinfo(3)+"::OnAtcommand";
+
+	if ( .size_online >= .min_player ) {
+		for ( .@i = 0; .@i < .size_mapflag; .@i++ )
+			setmapflag .event_map$, .mapflag[.@i];
+		dispatchAllTarget();
+		sleep 900000;	// 15 mins
+	}
+	sortPointArray();
+	PlayerGetReward();
+	deleteAllVar();
+	unbindatcmd "hunter";
+
+	announce "[ Hunter Event ] : End of event.",0;
+	mapwarp .event_map$,"prontera",150,150;
+	for ( .@i = 0; .@i < .size_mapflag; .@i++ )
+		removemapflag .event_map$, .mapflag[.@i];
+	end;
+
+OnPCLoginEvent:
+	if ( !.start ) end;
+	.@index = isinlist( ".list_init_cid", ".size_array_init" );
+	if( .@index == -1 && strcharinfo(3) == .event_map$ ) {
+		warp "prontera",0,0;
+		end;
+	}
+	else if( .@index == -1 ) end;
+	atcommand "@fakename [ "+ .dispatch_num_init[ .@index ] +" ] "+ strcharinfo(0) ;
+	.list_cid_online[ .size_online ] = getcharid(0);
+	.list_aid_online[ .size_online ] = getcharid(3);
+	.dispatch_num_online[ .size_online ] = .dispatch_num_init[ .@index ];
+	.size_online++;
+	newtarget();
+	end;
+
+OnPCLogoutEvent:
+	if ( !.start ) end;
+	.@index = isinlist( ".list_cid_online", ".size_online" );
+	if( .@index == -1 ) end;
+	if ( .malus_logout )
+		AddPoint( getcharid(0), -1, 0, -1, .malus_logout );	// if getarg(1) == -1 or getarg(2) == -1 => add getarg(4) * getarg(3) points
+	.@num_ = .dispatch_num_online[ .@index ];
+	deletearray .list_cid_online[ .@index ], 1;
+	deletearray .list_aid_online[ .@index ], 1;
+	deletearray .dispatch_num_online[ .@index ], 1;
+	deletearray .target_online[ .@index ], 1;
+	.size_online--;
+	if( .size_online < 2 )
+		awake strnpcinfo(0);
+	for ( .@i = 0; .@i < .size_online; .@i++ )
+		if ( .target_online[.@i] == .@num_ ) newtarget( .@i );
+	end;
+
+OnPCKillEvent:
+	if ( !.start ) end;
+	.@index = isinlist( ".list_cid_online", ".size_online" );
+	if( .@index == -1 ) end;
+	.@char_id = getcharid(0);
+	attachrid( killedrid );
+	.@index2 = isinlist( ".list_cid_online", ".size_online" );
+	if( .@index2 == -1 ) end;
+	AddPoint( getcharid(0), .@index, .@index2, -1 );	// <target>, <index online killer IO>, <IO Killed>, <rate points>
+	.@main = AddPoint( .@char_id, .@index, .@index2, 1 );
+	if ( .@main == .point_main )
+		newtarget( .@index );
+	sortPointArray();
+	for ( .@i = 0; .@i < .size_online; .@i++ )
+		if ( .count_point_online[.@i] >= 30 ) {
+			.@num_winner++;
+			if ( .@num_winner == 5 ) {
+				awake strnpcinfo(0);
+				end;
+			}
+		}
+	doevent strnpcinfo(0) +"::OnRezu";
+	end;
+
+OnRezu:
+	sleep2 3000;
+	warp .event_map$,0,0;
+	percentheal 100,100;
+	end;
+
+function AddPoint {
+	.@i = isinlist( ".list_init_cid", ".size_array_init", getarg(0) );
+	if ( getarg(1) == -1 || getarg(2) == -1 )
+		.@points = getarg( 4,0 ) * getarg(3);
+	else if( .target_online[ getarg(1) ] == .dispatch_num_online[ getarg(2) ] )
+		.@points = .point_main * getarg(3);
+	else
+		.@points = .point_others * getarg(3);
+	.count_point[.@i] = .count_point[.@i] + .@points;
+	message rid2name( .list_init_aid[.@i] ), "You have "+ .@points +" Hunters points. Total : "+ .count_point[.@i] +" Hunters points";
+	return .@points;
+}
+
+function deleteAllVar {
+	.size_array_init = .start = .size_num = .size_online = 0;
+	deletearray .list_cid_online;
+	deletearray .list_aid_online;
+	deletearray .dispatch_num_online;
+	deletearray .num;
+	deletearray .list_init_cid;
+	deletearray .dispatch_num_init;
+	deletearray .count_point;
+	deletearray .count_point_online;
+	deletearray .target_online;
+	return;
+}
+
+function dispatchAllTarget {
+	for( .@i = 0; .@i < .size_online; .@i++ ) {
+		newtarget( .@i );
+		charcommand "#fakename "+ rid2name( .list_aid_online[.@i] ) +" [ "+ .dispatch_num_online[.@i] +" ] "+ rid2name( .list_aid_online[.@i] ) ;
+	}
+	return;
+}
+
+function isinlist {
+	if ( getarg( 2,0 ) )
+		.@char_id = getarg( 2,0 );
+	else
+		.@char_id = getcharid(0);
+	while( .@i < getd( getarg(1) ) && getd( getarg(0) +"[" + .@i + "]" ) != .@char_id ) .@i++;
+	if( .@i == getd( getarg(1) ) ) return -1;
+	return .@i;
+}
+
+function initArrayNumber {
+	for( .@i = 0; .@i < 128; .@i++ )
+		.num[.@i] = .@i +1;
+	.size_num = 128;
+	return;
+}
+
+function initOnlineArray {
+	for ( .@i = 0; .@i < .size_array_init; .@i++ )
+		if( isloggedin( .list_init_aid[.@i], .list_init_cid[.@i] ) ) {
+			.list_cid_online[ .size_online ] = .list_init_cid[.@i];
+			.list_aid_online[ .size_online ] = .list_init_aid[.@i];
+			.dispatch_num_online[ .size_online ] = .dispatch_num_init[.@i];
+			warpchar .event_map$,0,0,.list_cid_online[ .size_online ];
+			.size_online++;
+		}
+	return;
+}
+
+function newtarget {
+	if( getarg( 0,-1 ) == -1 )
+		.@index = isinlist( ".list_cid_online", ".size_online" );
+	else
+		.@index = getarg( 0,-1 ) ;
+
+	do
+		.@r = rand( .size_online );
+	while( .@r == .@index );
+	.target_online[ .@index ] = .dispatch_num_online[.@r];
+	message rid2name( .list_aid_online[ .@index ] ), .list_cid_online[ .@index ] +" Your main target is now number [ "+ .target_online[ .@index ] +" ]";
+	return;
+}
+
+function PlayerGetReward {
+	for ( .@i = 0; .@i < .size_online; .@i++ ) {
+		charcommand "#fakename "+ rid2name( .list_aid_online[.@i] ) ;
+		for ( .@j = 0; .@j < .size_reward; .@j += 3 ) {
+			if( .count_point_online[.@i] >= .reward[.@j] ) {
+				getitem .reward[.@j+1], .reward[.@j+2], .list_aid_online[.@i];
+				break;
+			}
+		}
+	}
+	return;
+}
+
+function sortPointArray {
+	deletearray .count_point_online;
+	for ( .@i = 0; .@i < .size_online; .@i += 1 ) {
+		.@index = isinlist( ".list_init_cid", ".size_array_init", .list_cid_online[.@i] );
+		.count_point_online[.@i] = .count_point[ .@index ];
+	}
+	.@k_size = .size_online;
+	while ( .@k_size ) {
+		.@test = .count_point_online;
+		.@index = 0;
+		for ( .@i = 1; .@i < .@k_size; .@i += 1 )
+			if ( .@test < .count_point_online[.@i] ) {
+				.@test = .count_point_online[.@i];
+				.@index = .@i;
+			}
+
+		.@save_point[.@k] = .count_point_online[ .@index ];
+		.@save_aid[.@k] = .list_aid_online[ .@index ];
+		.@save_cid[.@k] = .list_cid_online[ .@index ];
+		.@save_dispatch_num[.@k] = .dispatch_num_online[ .@index ];
+		.@save_target[.@k] = .target_online[ .@index ];
+		deletearray .count_point_online[ .@index ], 1;
+		deletearray .list_aid_online[ .@index ], 1;
+		deletearray .list_cid_online[ .@index ], 1;
+		deletearray .dispatch_num_online[ .@index ], 1;
+		deletearray .target_online[ .@index ], 1;
+		.@k_size = .@k_size -1;
+		.@k += 1;
+	}
+	copyarray .count_point_online, .@save_point, .size_online;
+	copyarray .list_aid_online, .@save_aid, .size_online;
+	copyarray .list_cid_online, .@save_cid, .size_online;
+	copyarray .dispatch_num_online, .@save_dispatch_num, .size_online;
+	copyarray .target_online, .@save_target, .size_online;
+	return;
+}
+
+OnInit:
+	.npc_name$ = "^ff0000- [ Hunter NPC ] -^000000";
+	.malus_logout = 3;			// num malus points if log out ? (0: disabled)
+	.point_main = 3;			// points when killing main target / - points for main killed
+	.point_others = 1;			// points when killing others targets
+	.event_map$ = "geffen";		// event map
+	.min_player = 10;				// number min players to start
+	setarray .reward,	30, 501, 1,	// Typo : <points min>, <item ID>, <amount items>
+						29, 502, 1,
+						19, 503, 1,
+						 9, 504, 1,
+						 1, 505, 1;
+
+// Don't touch
+// -----------
+	.size_reward = getarraysize( .reward );
+	setarray .mapflag, mf_noreturn, mf_nowarp, mf_noteleport, mf_nowarpto, mf_pvp;
+	.size_mapflag = getarraysize( .mapflag );
+	for( ; .@i < .size_mapflag; .@i++ )
+		removemapflag .event_map$, .mapflag[.@i];
+	end;
+OnAtcommand:
+	if ( !.start ) end;
+	.@index = isinlist( ".list_cid_online", ".size_online" );
+	if( .@index == -1 ) end;
+	sortPointArray();
+	.@size = .size_online > 30 ? 30 : .size_online ;
+	dispbottom "Top 30 Hunters Online - { Name : Hunters Points }";
+	for ( .@i = 0; .@i < .@size; .@i += 1 )
+		dispbottom rid2name( .list_aid_online[.@i] ) +" : "+ .count_point_online[.@i];
+	end;
+}

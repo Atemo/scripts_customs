@@ -1,0 +1,156 @@
+//===== rAthena Script =======================================
+//= Rebirth System
+//===== By: ==================================================
+//= Capuche
+//===== Current Version: =====================================
+//= 1.0
+//===== Compatible With: =====================================
+//= rAthena SVN
+//===== Description: =========================================
+//= Base on this request :
+//= http://rathena.org/board/topic/82507-rebirth-system-50-rebirths/
+//----------------------------------------------------
+//= Rebirth the player x50. Give status points for each
+//= rebirth, and give Item(s) after x30 rebirth
+//============================================================
+
+/*
+CREATE TABLE IF NOT EXISTS `rebirth_system` (
+  `account_id` int(11) unsigned NOT NULL default '0',
+  `name` varchar(255) NOT NULL DEFAULT 'NULL',
+  `num_rebirth` int(11) unsigned NOT NULL default '0',
+  `last_ip` varchar(100) NOT NULL default '',
+  PRIMARY KEY  (`account_id`)
+) ENGINE=MyISAM;
+*/
+
+prontera,150,170,5	script	Spec	833,{
+function checkItem;			// check if player have all item required
+function colorItemrequired;	// color the text. Red : not enough item, green otherwise
+function deleteItem;		// delete all items required
+function displayItemneed;	// display all items need at start
+function getItemReward;		// give the items reward
+function weightreq;			// check if your current weight is highter than weight high novice
+
+
+	.@eac = eaclass();
+	if ( num_rebirth == .reset_max ) {
+		mes "You can only rebirth x"+ .reset_max +".";
+		emotion e_gasp;
+		close;
+	}
+	else if( NextJobExp || NextBaseExp || !( .@eac&EAJL_2 ) || !Upper ) {
+		mes "You must be rebirth max level/max job level.";
+		close;
+	}
+
+	mes "Items need :";
+	displayItemneed();
+	next;
+
+	switch( select( "^777777~ Rebirth", "~ Informations", "~ Good bye^000000" ) ) {
+		case 1:
+			weightreq();
+			checkItem();
+			deleteItem();
+			break;
+		case 2:
+			mes "You can only rebirth ^ff0000x"+ .reset_max +"^000000. You already rebirth ^ff0000x"+ num_rebirth +"^000000.";
+			mes "Each rebirth you get ^ff0000"+ .num_status +"^000000 status points and after ^ff0000"+ .change_reward +"^000000 rebirth, you get only some items.";
+			close;
+		case 3:
+			mes "Bye.";
+			close;
+	}
+	num_rebirth += 1;
+	if ( Upper ) {	// just in case the user change the setting...
+		lastJob = roclass( .@eac&EAJ_UPPERMASK );
+		jobchange Job_Novice_High;
+	}
+	else
+		jobchange Job_Novice;
+	resetlvl 1;
+	if ( num_rebirth < 30 )
+		StatusPoint = StatusPoint + .num_status * num_rebirth;
+	else
+		getItemReward();
+	query_sql "insert into `rebirth_system` values ( "+ getcharid(3) +", '"+ escape_sql( strcharinfo(0) ) +"', '"+ num_rebirth +"', '"+ getcharip() +"' ) on duplicate key update `num_rebirth` = `num_rebirth` +1";
+	announce "[ Rebirth system ] : "+ strcharinfo(0) +" rebirth for the "+ num_rebirth +" time !", 0;
+	close;
+
+
+
+function checkItem {
+	for ( ; .@i < .size_item; .@i += 2 )
+		if ( countitem( .item_req[.@i] ) < .item_req[ .@i+1 ] + num_rebirth ) {
+			mes "You don't have enought "+ getitemname( .item_req[.@i] ) +". ^ff0000["+ countitem( .item_req[.@i] ) +"/"+ ( .item_req[ .@i+1 ] + num_rebirth ) +"]^000000";
+			close;
+		}
+	if ( num_rebirth >= .change_reward )
+		if ( .add_item_req[1] + num_rebirth - .change_reward > countitem( .add_item_req[0] ) ) {
+			mes "You don't have enought "+ getitemname( .add_item_req[0] ) +". ^ff0000["+ countitem( .add_item_req[0] ) +"/"+ ( .add_item_req[1] + num_rebirth - .change_reward ) +"]^000000";
+			close;
+		}
+	return;
+}
+
+function colorItemrequired {
+	if ( countitem( .item_req[ getarg(0) ] ) < .item_req[ getarg(0)+1 ] + num_rebirth ) return "^ff0000";
+	return "^00ff00";
+}
+
+function deleteItem {
+	for ( ; .@i < .size_item; .@i += 2 )
+		delitem .item_req[.@i], ( .item_req[ .@i+1 ] + num_rebirth );
+	if ( num_rebirth >= .change_reward )
+		delitem .add_item_req[0], ( .add_item_req[1] + num_rebirth - .change_reward );
+	return;
+}
+
+function displayItemneed {
+	for ( ; .@i < .size_item; .@i += 2 )
+		mes colorItemrequired( .@i ) +" - x"+ ( .item_req[ .@i+1 ] + num_rebirth ) +" "+ getitemname( .item_req[.@i] );
+	if ( num_rebirth >= .change_reward ) {
+		if ( .add_item_req[1] + num_rebirth - .change_reward > countitem( .add_item_req[0] ) )
+			.@color$ = "^ff0000";
+		else
+			.@color$ = "^00ff00";
+		mes .@color$ +"- x"+ ( .add_item_req[1] + ( num_rebirth - .change_reward ) ) +" "+ getitemname( .add_item_req[0] );
+	}
+	return;
+}
+
+function getItemReward {
+	for ( ; .@i < .size_reward; .@i += 2 )
+		getitem .reward[.@i], .reward[ .@i+1 ];
+	return;
+}
+
+function weightreq {
+	if ( Weight > 20000 ) {
+		mes "You have too much items on you. Your weight will be too high after rebirth.";
+		close;
+	}
+	return;
+}
+
+OnInit:
+	.reset_max = 50;		// how much reset max
+	.change_reward = 30;	// after 30 rebirth, change reward
+	.num_status = 300;		// + X number of status points
+
+// item required <item ID>, <number>
+	setarray .item_req, 501, 5,
+						502, 2,
+						503, 3;
+	.size_item = getarraysize( .item_req );
+
+// additionnal items after rebirth >> .change_reward
+// <item ID>, <number>
+	setarray .add_item_req, 601, 1;
+
+// rewards <item ID>, <number>
+	setarray .reward, 504, 1;
+	.size_reward = getarraysize( .reward );
+	end;
+}

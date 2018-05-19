@@ -1,0 +1,45 @@
+//-------------------------------------------------------
+// Track Map 1.00
+// by Capuche
+// for rAthena
+//-------------------------------------------------------
+//- Display a viewpoint for each player on the same map
+//- as the user when using the equipment specified
+//-------------------------------------------------------
+
+// 2201,Sunglasses,Sunglasses,5,5000,,100,,0,,0,0xFFFFFFFF,7,2,512,,0,0,12,{ doevent "view_map::OnEventView"; },{ set @item_equipped, 1; },{ set @item_equipped, 0; }
+
+-	script	view_map	-1,{
+OnInit:
+	.size_name = query_sql( "SELECT `name` FROM `char` WHERE `online` = 1 LIMIT 128", .name$ );
+	end;
+OnPCLoginEvent:
+	.name$[ .size_name ] = strcharinfo(0);// max 128 players
+	.size_name++;
+OnEventView:
+	.@name_self$ = strcharinfo(0);
+	sleep2 2;
+	while( playerattached() && @item_equipped ) {
+		.@map_self$ = strcharinfo(3);
+		for( .@i = 0; .@i < .size_name; .@i++ ) {
+			if( .name$[ .@i ] != .@name_self$ ) {
+				getmapxy .@map$, .@x, .@y, 0, .name$[ .@i ];
+				if( .@map$ == .@map_self$ ) {
+					.@size_tmp++;
+					viewpoint 1, .@x, .@y, .@size_tmp, 0xFF0000;
+				}
+			}
+		}
+		sleep2 2000;
+		for( .@i = 1; .@i < .@size_tmp +1; .@i++ )
+			viewpoint 2, 0, 0, .@i, 0xFF0000;
+		.@size_tmp = 0;
+	}
+	end;
+OnPCLogoutEvent:
+	while( .@i < .size_name && .name$[ .@i ] != strcharinfo(0) ) .@i++;
+	if( .@i == .size_name ) end;
+	deletearray .name$[ .@i ], 1;
+	.size_name--;
+	end;
+}
