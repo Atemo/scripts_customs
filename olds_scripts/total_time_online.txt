@@ -14,7 +14,7 @@
 //= Choose your version.
 //============================================================
 
-prontera,149,129,5	script	TotalTimeOnline	857,{
+prontera,149,129,5	script	TotalTimeOnline 1	857,{
 	
 	mes "^FF6600Time device^000000";
 	mes "My Game's Time.";
@@ -125,7 +125,7 @@ function s;
 function s { return ( getarg(0) > 1 ? "s " : " " ); }
 }
 
-prontera,149,129,5	script	TotalTimeOnline	857,{
+prontera,149,131,5	script	TotalTimeOnline 2	857,{
 	query_sql "SELECT value FROM time_online WHERE char_id = "+ getcharid(0) +" LIMIT 1", .@time_char;
 	query_sql "SELECT value FROM time_online WHERE account_id = "+ getcharid(3) +" LIMIT 1", .@time_account;
 

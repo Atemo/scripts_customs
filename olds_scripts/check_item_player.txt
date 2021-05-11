@@ -14,7 +14,7 @@
 //============================================================
 
 
-prontera,166,185,6	script	ghjkl	56,{
+prontera,166,185,6	script	ghjklddd	56,{
 	mes "Enter a name.";
 	input .@n$;
 

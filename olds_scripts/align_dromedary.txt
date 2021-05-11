@@ -30,7 +30,7 @@ OnInit:
 	setarray .direction, 2, 6, 2, 6, 6, 2, 6;
 	for( .@i = 0; .@i < 7; .@i++ ) {
 		// .direction[ .@i ] = rand(2) ? 2 : 6;
-		getmapxy .@map$, .@x, .@y, 1, "#npcswitch_1_"+ .@i;
+		getmapxy .@map$, .@x, .@y, BL_NPC, "#npcswitch_1_"+ .@i;
 		movenpc "#npcswitch_1_"+ .@i, .@x, .@y, .direction[ .@i ];
 	}
 	end;
@@ -56,7 +56,7 @@ prontera,152,164,6	script	#npcswitch_1_0	938,{
 	}
 	for ( .@j = 0; .@j < getarraysize( .@switch_ ); .@j++ ) {
 		.tmp[ .@switch_[.@j] ] = ( .tmp[ .@switch_[.@j] ] == 2 ? 6 : 2 );
-		getmapxy .@map$, .@x, .@y, 1, "#npcswitch_1_"+ .@switch_[.@j];
+		getmapxy .@map$, .@x, .@y, BL_NPC, "#npcswitch_1_"+ .@switch_[.@j];
 		movenpc "#npcswitch_1_"+ .@switch_[.@j], .@x, .@y, .tmp[ .@switch_[.@j] ];
 	}
 	while ( .@k < 6 && .tmp[.@k] == .tmp[.@k +1] ) .@k++;
