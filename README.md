@@ -4,7 +4,7 @@ Feel free to use anything here!
 
 I accept any aroma of coffee : https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=MNKESS8LZF4P4
 
-I'm currently selling episode 18.1 script. Find me on rAthena discord `Atemo#2554`
+I'm currently selling episode 18.1 script. Find me on rAthena discord `Atemo#2554` or PM me on rAthena forum https://rathena.org/board/profile/5984-capuche/
 
 # Scripts customs for rAthena
 
